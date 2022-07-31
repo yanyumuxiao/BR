@@ -6,6 +6,7 @@ class Config(object):
 
     def __init__(self):
         self.flag = 'clo'  # dataset name
+        # self.flag = 'ele'  # dataset name
 
         self.item_count = None  # item node size
         self.cate_count = None  # item cate size
