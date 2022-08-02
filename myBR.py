@@ -39,8 +39,10 @@ from tqdm import tqdm
 from BR import config
 from BR.Dense import FA_Linear
 from BR.config import Config
-from BR.datasets import DataInput
-from BR.utils import load_data
+from BR.datasets import DataInput, TestDataInput
+from BR.utils import load_data, init_seed
+from beam import beam_search_decoding
+from metrics import print_all_metrics
 
 '''
 refer: https://github.com/bentrevett/pytorch-seq2seq/blob/master/3%20-%20Neural%20Machine%20Translation%20by%20Jointly%20Learning%20to%20Align%20and%20Translate.ipynb
@@ -532,6 +534,43 @@ def evaluate(model, val, bundle_map, criterion):
     return auc
 
 
+def test(model,test, bundle_map):
+    model.eval()
+    res = []
+    with torch.no_grad():
+        for i, uij in tqdm(TestDataInput(config, test, bundle_map)):
+            inputs, trg = uij
+
+            inputs = inputs.transpose(0, 1).contiguous().cuda()
+
+            enc_outs, h = model.encoder(inputs)
+
+            # decoded_seqs: (bs, T)
+            # start_time = time.time()
+
+            # [batch_size, beam_width, max_dec_steps]
+            decoded_seqs = beam_search_decoding(decoder=model.decoder,
+                                                enc_outs=enc_outs,
+                                                enc_last_h=h,
+                                                beam_width=config.beam_width,
+                                                n_best=config.n_best,
+                                                sos_token=config.go_symbol,
+                                                eos_token=config.eof_symbol,
+                                                max_dec_steps=config.max_dec_steps,
+                                                device=config.device)
+            # end_time = time.time()
+            # print(f'for loop beam search time: {end_time - start_time:.3f}')
+
+            def save_n_best(decoded_seq):
+                for i in range(len(decoded_seq)):
+                    res.append((trg[i], decoded_seq[i]))
+            save_n_best(decoded_seqs)
+
+        pre_10, div_10 = print_all_metrics(config.flag, res, config.topk1)
+        pre_5, div_5 = print_all_metrics(config.flag, res, config.topk2)
+        return pre_10, div_10, pre_5, div_5
+
+
 """Finally, define a timing function."""
 
 
@@ -544,13 +583,14 @@ def epoch_time(start_time, end_time):
 
 """Then, we train our model, saving the parameters that give us the best validation loss."""
 
-best_auc = float('inf')
+best_auc = 0.0
 
 for epoch in range(10):
     start_time = time.time()
-
-    auc = evaluate(model, val_set, bundle_map, criterion)
+    init_seed(2022)
     train_loss = train(model, train_set, bundle_map, optimizer, criterion)
+    auc = evaluate(model, val_set, bundle_map, criterion)
+    pre_10, div_10, pre_5, div_5 = test(model, test_set, bundle_map)
 
     end_time = time.time()
 
@@ -558,12 +598,12 @@ for epoch in range(10):
 
     if auc > best_auc:
         best_auc = auc
-        torch.save(model.state_dict(), 'br-model.pt')
+        torch.save(model.state_dict(), 'model_[auc:{}]_[pre.pt')
 
     print(f'Epoch: {epoch + 1:02} | Time: {epoch_mins}m {epoch_secs}s')
-    print(f'\tTrain Loss: {train_loss:.3f}')
-    # print(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
-    print(f'\t Val. Auc: {auc:.3f}')
+    print(f'\tTrain Loss: {train_loss:.3f}\t Val. Auc: {auc:.3f}\tTrain PPL: {math.exp(train_loss):7.3f}')
+    print('%s\tP@%d: %.4f%%\tDiv: %.4f\tP@%d: %.4f%%\tDiv: %.4f'
+          % (config.flag, config.topk1, pre_10, div_10, config.topk2, pre_5, div_5))
 
 """Finally, we test the model on the test set using these "best" parameters."""
 

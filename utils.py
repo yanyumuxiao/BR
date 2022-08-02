@@ -22,6 +22,10 @@ def load_data(config):
         (user_count, item_count, cate_count, bundle_count, bundle_rank, _) = pickle.load(f)
         gen_groundtruth_data = pickle.load(f)
 
+    idx = np.random.choice(len(gen_groundtruth_data), 1000, replace=False)
+    gen_groundtruth_data = [(gen_groundtruth_data[i][0], gen_groundtruth_data[i][1], gen_groundtruth_data[i][2]) for i
+                            in idx]
+
     cate_list = np.concatenate([cate_list, [cate_count, cate_count, cate_count]])
     cate_list = torch.LongTensor(cate_list).to(config.device)
 
@@ -36,7 +40,7 @@ def load_data(config):
 
     config.set_count(item_count, cate_count, cate_list)
 
-    return train_set, test_set, gen_groundtruth_data, bundle_map , adj
+    return train_set, test_set, gen_groundtruth_data, bundle_map, adj
 
 
 def init_seed(seed=None):

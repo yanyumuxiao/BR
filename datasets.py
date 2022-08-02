@@ -84,6 +84,7 @@ class DataInput(object):
 class TestDataInput(object):
 
     def __init__(self, config, raw_data, bundle_map):
+        self.config = config
         self.batch_size = config.batch_size
         self.raw_data = raw_data
         self.epoch_size = len(raw_data) // self.batch_size
@@ -116,16 +117,13 @@ class TestDataInput(object):
             # i储存的是pos bundle包含的item
             i.append(list(self.bundle_map[t[2]]))
 
-            # 分别计算pos、neg和item序列的最大item长度
-            max_sl_i = max(max_sl_i, len(i[-1]))
+            # 计算item序列的最大item长度
             h_sl = max(h_sl, len(h[-1]))
 
         # 针对max length添加pad
         for k in range(end - start):
-            while len(i[k]) < max_sl_i: i[k].append(self.pad)
             while len(h[k]) < h_sl: h[k].append(self.pad)
 
         h = torch.LongTensor(np.array(h, np.int32))
-        i = torch.LongTensor(np.array(i, np.int32))
         self.i += 1
         return self.i, (h, i)

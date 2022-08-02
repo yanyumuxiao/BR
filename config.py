@@ -16,8 +16,10 @@ class Config(object):
         self.pad = None  # pad symbol
 
         self.beam_width = 50
-        self.n_best = 5
-        self.max_dec_steps = 200
+        self.n_best = 3
+        self.max_dec_steps = 50
+        self.topk1 = 10
+        self.topk2 = 5
 
         self.teacher_forcing_ratio = 0.5
         self.clip = 5
@@ -27,9 +29,9 @@ class Config(object):
         self.bidirectional = False
         self.num_layers = 2
 
-        self.enc_hidden = 128
-        self.dec_hidden = 128
-        self.hidden = 128  # Embedding Size
+        self.enc_hidden = 64
+        self.dec_hidden = 64
+        self.hidden = 64  # Embedding Size
         self.dropout = 0.0
         self.filter_sizes = [1, 2, 4, 8, 12, 16, 32, 64]
         # self.filter_sizes = (1, 1)
